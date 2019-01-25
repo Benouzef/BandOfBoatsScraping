@@ -1,94 +1,115 @@
+const d3 = require('d3');
+const fs = require('fs');
+const stdio = require('stdio');
 const axios = require('axios');
 const cheerio = require('cheerio');
-const fs = require('fs');
 
-let boatsToScrape = [];
-let results = [];
+let boatsToBeProcessed = [];
+let processedBoats = [];
+let processedVendors = [];
+let processedVendorsResult = [];
+
 const baseUrl = 'https://www.bandofboats.com';
-const listUrl = baseUrl + '/fr/buy/boat?_locale=fr&sort=publication_desc&page=';
+const defaultWaitTimeInMs = 1000;
 
-mainScraping().then(() =>{
-    console.log(boatsToScrape.length);
-}).then(() => {
-    boatInfoScraping().then(() => {
-        console.log(results.length);
-    })
+var ops = stdio.getopt({
+	csvFile: {description: 'Input : CSV File Name', key: 'c', args: 1, mandatory: true},
+	boatsFile: {description: 'Output : json result file for Boats - overwritten if exists', key: 'b', args: 1, mandatory: false},
+	vendorsFile: {description: 'Output : json result file for vendors - overwritten if exists', key: 'v', args: 1, mandatory: false}
 });
 
-async function mainScraping() { 
-    for(i = 1; i <= 2; i++){ // TODO : manage the number of pages to scrape
-        console.log(listUrl + i);
-        await getDataForBoats(listUrl + i);
-        await sleep(2000);
+// Check if input file exists
+try {
+    if (fs.existsSync(ops.csvFile)) {
+        ProcessCSVFile(ops.csvFile);
+    } else {
+        console.error('Input File does not exist: ' + ops.csvFile)
+    }
+} catch(err) {
+  console.error(err)
+}
+
+// Process Input CSV File
+async function ProcessCSVFile(filename) {
+    console.log('Processing... : ' + filename);
+
+    var raw = fs.readFileSync(filename, 'utf8');
+    boatsToBeProcessed = d3.csvParse(raw);
+    console.log('Total # of boats to be processed : ' + boatsToBeProcessed.length);
+
+    var pbar = stdio.progressBar(boatsToBeProcessed.length, 1);
+    pbar.onFinish(function () {
+        if (processedBoats.length != boatsToBeProcessed.length) {
+            console.error("ERROR: Some boats have not been properly processed!")
+        }
+        let data = JSON.stringify(processedBoats);  
+        fs.writeFileSync(ops.boatsFile, data, {encoding:'utf8',flag:'w+'}); 
+
+        data = JSON.stringify(processedVendorsResult);  
+        fs.writeFileSync(ops.vendorsFile, data, {encoding:'utf8',flag:'w+'}); 
+
+        data = JSON.stringify(boatsToBeProcessed);  
+        fs.writeFileSync('test.json', data, {encoding:'utf8',flag:'w+'}); 
+        
+        console.log('DONE!!! (Please review results if errors have been thrown during execution!)');
+    });
+
+    for (i = 0; i < boatsToBeProcessed.length; i++) {
+        await getDataForASingleBoat(boatsToBeProcessed[i].link, i);
+        await sleep(defaultWaitTimeInMs);
+        pbar.tick();
     }
 }
 
-async function boatInfoScraping(){
-    for (j = 0; j < boatsToScrape.length; j++){
-        console.log(baseUrl + boatsToScrape[j]);
-        await getDataForASingleBoat(baseUrl, boatsToScrape[j], j)
-        await sleep(3000);
-    } 
-} 
-
-async function getDataForBoats (url) {
+async function getDataForASingleBoat (url, i) {
     await axios.get(url)
     .then((response) => {
         if(response.status === 200) {
+            var timestamp = Date.now();
+
             html = response.data;
             $ = cheerio.load(html); 
             
-            $('div[class=oneAd]', 'div[id=search-boats-results]').find('a').each(function(i, elem){
-                console.log(url + ' : ' + elem.attribs.href);
-                
-                boatItem = elem.attribs.href;
-
-                boatsToScrape.push(boatItem);
-            }); 
-            console.log(boatsToScrape)
-        }
-    }, 
-        (error) => console.log(error)
-    );
-} 
-
-async function getDataForASingleBoat (url, boat, j) {
-    await axios.get(url + boat)
-    .then((response) => {
-        if(response.status === 200) {
-            html = response.data;
-            $ = cheerio.load(html); 
-
+            let keyCars = [];
             // Check that some "Caractéristiques clés" are available for this boat
             if ($('span[class="titleKey"]', 'div[id="description"]').text() == "Caractéristiques clés") {
                 
                 $('ul[class="lstDetails"]', 'div[id="description"]').find('li').each(function(i, elem){
-                    console.log($(elem).text());
+                    let key = $(elem.childNodes[0]).text().trim();
+                    if (key.endsWith(':')) {
+                        key = key.substring(0, key.length-1);
+                    } 
+
+                    let value = $(elem.childNodes[1]).text().trim();
+                    let detail = { key, value };
+                    
+                    keyCars.push(detail);
+
                 }); 
-            } ;
+            };
+            
+            
 
             // Getting vendorUrl and then browsing to it
-        
             let vendorUrl = "";
-            console.log($('a[class="fap-link"]', 'div[class="sold"]').length);
             if ($('a[class="fap-link"]', 'div[class="sold"]').length === 1) {
                 vendorUrl = baseUrl + $('a[class="fap-link"]', 'div[class="sold"]')[0].attribs.href;
             };
             
-            console.log(vendorUrl);
+            boat = {
+                i,
+                url,
+                timestamp,
+                keyCars,
+                vendorUrl
+            } 
+
+            processedBoats.push(boat);
+            boatsToBeProcessed[i].done = 'Y';
+            boatsToBeProcessed[i].timestamp = timestamp;
             
             return vendorUrl;
-            /*result = {
-                j,
-                company,
-                companyUrl,
-                email,
-                address,
-                contact,
-                tel
-            } 
-            console.log(result);
-            results.push(result);*/
+            
         }
     }, 
         (error) => console.log(error)
@@ -102,23 +123,36 @@ async function getDataForASingleBoat (url, boat, j) {
 } 
 
 async function getDataForBoatVendor (url) {
-    await axios.get(url)
-    .then((response) => {
-        if(response.status === 200) {
-            html = response.data;
-            $ = cheerio.load(html); 
 
-            console.log($('h1[class="title"]').text());
-            if ($('a[id="btnCallOffice"]').length === 1) {
-                console.log($('a[id="btnCallOffice"]')[0].attribs.rel);
+    if (processedVendors.find((elem) => { return elem == url; }) == undefined) {
+        processedVendors.push(url);
+
+        await sleep(defaultWaitTimeInMs);
+        await axios.get(url)
+        .then((response) => {
+            if(response.status === 200) {
+                html = response.data;
+                $ = cheerio.load(html); 
+
+                if ($('a[id="btnCallOffice"]').length === 1) {
+                    phone = $('a[id="btnCallOffice"]')[0].attribs.rel;
+                }
+                if ($('a[id="btnEmailOffice"]').length === 1) {
+                    mail = $('a[id="btnEmailOffice"]')[0].attribs.rel;
+                }
+
+                vendor = {
+                    url,
+                    phone,
+                    mail
+                }
+
+                processedVendorsResult.push(vendor);
             }
-            if ($('a[id="btnEmailOffice"]').length === 1) {
-                console.log($('a[id="btnEmailOffice"]')[0].attribs.rel);
-            }
-        }
-    }, 
-        (error) => console.log(error)
-    );
+        }, 
+            (error) => console.log(error)
+        );
+    }
 } 
 
 // Function to wait a given amount of time between clicks

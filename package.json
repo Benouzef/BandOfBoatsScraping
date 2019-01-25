@@ -21,6 +21,8 @@
   "homepage": "https://github.com/Benouzef/BandOfBoatsScraping#readme",
   "dependencies": {
     "axios": "^0.18.0",
-    "cheerio": "^1.0.0-rc.2"
+    "cheerio": "^1.0.0-rc.2",
+    "d3": "^5.7.0",
+    "stdio": "^0.2.7"
   }
 }
