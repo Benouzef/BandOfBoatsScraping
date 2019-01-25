@@ -40,7 +40,8 @@ async function ProcessCSVFile(filename) {
     var pbar = stdio.progressBar(boatsToBeProcessed.length, 1);
     pbar.onFinish(function () {
         if (processedBoats.length != boatsToBeProcessed.length) {
-            console.error("ERROR: Some boats have not been properly processed!")
+            console.error("ERROR: Some boats have not been properly processed!");
+            console.log(d3.csvParse(raw).length + ' = ' + processedBoats.length + ' + ' + d3.csvParse(raw).filter(function(value) { return value.done === 'Y' }).length + ' ??');
         }
         let data = JSON.stringify(processedBoats);  
         fs.writeFileSync(ops.boatsFile, data, {encoding:'utf8',flag:'w+'}); 
@@ -55,8 +56,10 @@ async function ProcessCSVFile(filename) {
     });
 
     for (i = 0; i < boatsToBeProcessed.length; i++) {
-        await getDataForASingleBoat(boatsToBeProcessed[i].link, i);
-        await sleep(defaultWaitTimeInMs);
+        if (boatsToBeProcessed[i].done != 'Y') {
+            await getDataForASingleBoat(boatsToBeProcessed[i].link, i);
+            await sleep(defaultWaitTimeInMs);
+        }
         pbar.tick();
     }
 }
