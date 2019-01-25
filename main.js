@@ -49,7 +49,7 @@ async function ProcessCSVFile(filename) {
         fs.writeFileSync(ops.vendorsFile, data, {encoding:'utf8',flag:'w+'}); 
 
         data = JSON.stringify(boatsToBeProcessed);  
-        fs.writeFileSync('test.json', data, {encoding:'utf8',flag:'w+'}); 
+        fs.writeFileSync(ops.csvFile + '.updated', data, {encoding:'utf8',flag:'w+'}); 
         
         console.log('DONE!!! (Please review results if errors have been thrown during execution!)');
     });
