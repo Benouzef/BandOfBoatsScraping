@@ -1,9 +1,32 @@
-/**
- * @author Benoit Fillon (www.skillvalue.com)
- */
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: main.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: main.js</h1>
+
+    
 
 
-const d3 = require('d3');
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const d3 = require('d3');
 const fs = require('fs');
 const stdio = require('stdio');
 const axios = require('axios');
@@ -74,7 +97,7 @@ async function ProcessCSVFile(filename) {
         console.log('DONE!!! (Please review results if errors have been thrown during execution!)');
     });
 
-    for (i = 0; i < boatsToBeProcessed.length; i++) {
+    for (i = 0; i &lt; boatsToBeProcessed.length; i++) {
         if (boatsToBeProcessed[i].done != 'Y') {
             await getDataForASingleBoat(boatsToBeProcessed[i].link, i);
             await sleep(defaultWaitTimeInMs);
@@ -98,11 +121,6 @@ async function getDataForASingleBoat (url, i) {
             $ = cheerio.load(html); 
             
             let keyCars = [];
-            let categories = [];
-
-            let yearOfConstruction = $('span[data-cash-sentinel="boat-year"]').text().trim();
-            let description = $('div[id="textDescription"]').text().trim();
-
             // Check that some "Caractéristiques clés" are available for this boat
             if ($('span[class="titleKey"]', 'div[id="description"]').text() == "Caractéristiques clés") {
                 
@@ -119,32 +137,6 @@ async function getDataForASingleBoat (url, i) {
 
                 }); 
             };
-
-            // Check if "Inventaire" is available for this boat
-            $('div[class="blockCateg"]', 'div[id="detailed_inventory"]').each(function(i, elem) {
-                let titleCategory = $(elem).find('div[class="titleCateg"]').text().trim();
-                let details = [];
-
-                $(elem).find('ul[class="lstDetails"]').find('li').each(function(i, elem){
-                    let key = $(elem.childNodes[0]).text().trim();
-                    if (key.endsWith(':')) {
-                        key = key.substring(0, key.length-1);
-                    } 
-
-                    let value = $(elem.childNodes[1]).text().trim();
-                    let detail = { key, value };
-                    
-                    details.push(detail);
-
-                });
-
-                let category = {
-                    titleCategory,
-                    details
-                }
-
-                categories.push(category);
-            });
             
             
 
@@ -157,11 +149,8 @@ async function getDataForASingleBoat (url, i) {
             boat = {
                 i,
                 url,
-                yearOfConstruction,
-                description,
                 timestamp,
                 keyCars,
-                categories,
                 vendorUrl
             } 
 
@@ -199,46 +188,15 @@ async function getDataForBoatVendor (url) {
                 html = response.data;
                 $ = cheerio.load(html); 
 
-                // Getting vendor name and address info
-                if ($('div[class="oneCardPro"]').length === 1) {
-                    name = $('h2', 'div[class="oneCardPro"]').text().trim();
-                    address = $('p[class="address"]', 'div[class="oneCardPro"]').text().trim();
-                    fullcity = $('p[class="city"]', 'div[class="oneCardPro"]').text().trim();
-                    zipcode = $('span', 'p[class="city"]').text().trim();
-                    city = fullcity.replace(zipcode, '').trim();
-                    country = $('p[class="country"]', 'div[class="oneCardPro"]').text().trim();
-                }
-
-                // Getting vendor coordinates
-                if ($('div[id="map"]').length === 1) {
-                    coordinates = $('div[id="map"]')[0].attribs["data-coordinates"];
-                    let coordinatesDetails = coordinates.replace('(', '').replace(')', '').split(',');
-                    longitude = coordinatesDetails[0];
-                    latitude = coordinatesDetails[1];
-                }
-
-                // Getting phone number if it exists
                 if ($('a[id="btnCallOffice"]').length === 1) {
                     phone = $('a[id="btnCallOffice"]')[0].attribs.rel;
                 }
-                
-                // Getting email if it exists
                 if ($('a[id="btnEmailOffice"]').length === 1) {
                     mail = $('a[id="btnEmailOffice"]')[0].attribs.rel;
                 }
 
-                description = $('div[class="description"]', 'div[class="container"]').text().trim();
-
                 vendor = {
                     url,
-                    name,
-                    description,
-                    address,
-                    zipcode,
-                    city,
-                    country,
-                    longitude,
-                    latitude,
                     phone,
                     mail
                 }
@@ -259,4 +217,26 @@ function sleep(ms){
     return new Promise(resolve=>{
         setTimeout(resolve,ms)
     })
-}
+}</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#getDataForASingleBoat">getDataForASingleBoat</a></li><li><a href="global.html#getDataForBoatVendor">getDataForBoatVendor</a></li><li><a href="global.html#ops">ops</a></li><li><a href="global.html#ProcessCSVFile">ProcessCSVFile</a></li><li><a href="global.html#sleep">sleep</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.5.5</a> on Sat Jan 26 2019 15:25:18 GMT+0100 (GMT+01:00)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
